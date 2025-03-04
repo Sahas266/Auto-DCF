@@ -1,4 +1,4 @@
-Attribute VB_Name = "Module1"
+
 Dim ticker As String
 Dim currentYear As Integer
     
@@ -78,3 +78,38 @@ Sub FillWACC()
     Range("").Formula = "=TR(""" & ticker & """, ""TR.F.MinIntrEq"") * " & scaling
 
 End Sub
+
+Sub FillAssumptions()
+    Dim wsDCF As Worksheet, wsAssumptions As Worksheet
+    Dim lastCol As Integer
+    Dim firstProjectionCol As Integer
+    Dim scaleFactor As Double
+    
+    ' Set worksheets
+    Set wsDCF = ThisWorkbook.Sheets("DCF")
+    Set wsAssumptions = ThisWorkbook.Sheets("Assumptions")
+
+    ' Define scaling factor (convert to millions)
+    scaleFactor = 1000000
+
+    ' Identify the last column for projection data
+    lastCol = wsAssumptions.Cells(9, wsAssumptions.Columns.Count).End(xlToLeft).Column
+
+    ' First projection column (skip C to E, start at F)
+    firstProjectionCol = 6
+
+    ' Fill Base Case % Growth (Sales) - Row 11
+    wsAssumptions.Range(wsAssumptions.Cells(11, firstProjectionCol), wsAssumptions.Cells(11, lastCol)).Formula = "=" & wsDCF.Range("I8").Address(True, True, xlA1, True) & " / " & scaleFactor
+
+    ' Fill Base Case COGS % (Cost of Goods Sold) - Row 18
+    wsAssumptions.Range(wsAssumptions.Cells(18, firstProjectionCol), wsAssumptions.Cells(18, lastCol)).Formula = "=" & wsDCF.Range("I9").Address(True, True, xlA1, True) & " / " & scaleFactor
+
+    ' Fill Base Case SG&A % - Row 25
+    wsAssumptions.Range(wsAssumptions.Cells(25, firstProjectionCol), wsAssumptions.Cells(25, lastCol)).Formula = "=" & wsDCF.Range("I12").Address(True, True, xlA1, True) & " / " & scaleFactor
+
+    ' Fill Base Case Depreciation & Amortization % Sales - Row 32
+    wsAssumptions.Range(wsAssumptions.Cells(32, firstProjectionCol), wsAssumptions.Cells(32, lastCol)).Formula = "=" & wsDCF.Range("I15").Address(True, True, xlA1, True) & " / " & scaleFactor
+
+    MsgBox "Base Case assumptions filled successfully, scaled down by 1 million! (Columns C-E excluded)", vbInformation
+End Sub
+
