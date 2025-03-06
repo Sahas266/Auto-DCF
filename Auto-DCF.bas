@@ -38,7 +38,6 @@ Sub FillDCF()
     historicals.Add "I14", "SGATot"
     historicals.Add "I17", "DeprDeplAmortTot"
     historicals.Add "I24", "CAPEXTot"
-    historicals.Add "I57", "TaxRateActValue"
     
     ' Loop to fetch data for current year and previous 3 years
     For i = 0 To 3
@@ -46,28 +45,30 @@ Sub FillDCF()
             ' Define the target cell (starting from C3)
             Set cell = Range(key).Offset(0, -i)
             ' Fetch data from Refinitiv and place the TR function directly into the cell
-            cell.Formula = "=TR(""" & ticker & """, ""TR.F." & (historicals(key)) & """, ""Period=" & (currentYear - i) & """) * " & scaling
+        cell.Formula = "=IFERROR(TR(""" & ticker & """, ""TR.F." & (historicals(key)) & """, ""Period=" & (currentYear - i) & """) * " & scaling & ", 0)"
         Next key
     Next i
+    
     ' Loop to fill the tax rates
     For i = 0 To 3
         ' Define the target cell
         Set cell = Range("I57").Offset(0, -i)
         ' Fetch data from Refinitiv and place the TR function directly into the cell
-        cell.Formula = "=TR(""" & ticker & """, ""TR.WACCTaxRate"", ""Period=" & (currentYear - i) & """)"
+        cell.Formula = "=IFERROR(TR(""" & ticker & """, ""TR.TaxRateActValue"", ""Period=" & (currentYear - i) & """) / 100, 0)"
     Next i
     
     ' Additional data
-    Range("K36").Formula = "=TR(""" & ticker & """, ""TR.F.DebtTot"") * " & scaling
-    Range("K39").Formula = "=TR(""" & ticker & """, ""TR.F.CashCashEquivTot"") * " & scaling
-    Range("P43").Formula = "=TR(""" & ticker & """, ""TR.F.EBITDA"", ""Period=LTM"") * " & scaling
-    Range("K43").Formula = "=TR(""" & ticker & """, ""TR.SharesOutstanding"") * " & scaling
-    Range("K37").Formula = "=TR(""" & ticker & """, ""TR.F.PrefShHoldEq"") * " & scaling
-    Range("K38").Formula = "=TR(""" & ticker & """, ""TR.F.MinIntrTot"") * " & scaling
+    Range("K36").Formula = "=IFERROR(TR(""" & ticker & """, ""TR.F.DebtTot"") * " & scaling & ", 0)"
+    Range("K39").Formula = "=IFERROR(TR(""" & ticker & """, ""TR.F.CashCashEquivTot"") * " & scaling & ", 0)"
+    Range("P43").Formula = "=IFERROR(TR(""" & ticker & """, ""TR.F.EBITDA"", ""Period=LTM"") * " & scaling & ", 0)"
+    Range("K43").Formula = "=IFERROR(TR(""" & ticker & """, ""TR.SharesOutstanding"") * " & scaling & ", 0)"
+    Range("K37").Formula = "=IFERROR(TR(""" & ticker & """, ""TR.F.PrefShHoldEq"") * " & scaling & ", 0)"
+    Range("K38").Formula = "=IFERROR(TR(""" & ticker & """, ""TR.F.MinIntrTot"") * " & scaling & ", 0)"
     
     ' Call FillWACC
     FillWACC ticker, currentYear
     FillNWC ticker, currentYear, scaling
+    CalculateAvgPercentageChangeAndStore
     
     Debug.Print "Macro is running!"
     MsgBox "Button Clicked!"
@@ -110,78 +111,153 @@ Sub FillNWC(ticker As String, currentYear As Integer, scaling As Double)
             ' Define the target cell (starting from C3)
             Set cell = Range(key).Offset(0, -i)
             ' Fetch data from Refinitiv and place the TR function directly into the cell
-            cell.Formula = "=TR(""" & ticker & """, ""TR.F." & (historicals(key)) & """, ""Period=" & (currentYear - i) & """) * " & scaling
+            cell.Formula = "=IFERROR(TR(""" & ticker & """, ""TR.F." & (historicals(key)) & """, ""Period=" & (currentYear - i) & """) * " & scaling & ", 0)"
         Next key
     Next i
     
 End Sub
 
-Sub FillAssumptions()
-    Dim wsDCF As Worksheet, wsAssumptions As Worksheet, wsNWC As Worksheet
-    Dim firstCol As Integer, lastCol As Integer
+Sub CalculateAvgPercentageChangeAndStore()
+    Dim ws As Worksheet
+    Dim rowNumbers As Variant
+    Dim avgChanges() As Double
+    Dim rng As Range
     Dim i As Integer
-    Dim grossMarginAvg As Double, cogsAvg As Double, capexAvg As Double, wcAvg As Double
-    Dim arAvg As Double, invAvg As Double, prepaidAvg As Double, apAvg As Double, accruedLiabAvg As Double, otherLiabAvg As Double
-    Dim downsideCase As Double, upsideCase As Double
     
-    ' Set worksheets
-    Set wsDCF = ThisWorkbook.Sheets("DCF")
-    Set wsNWC = ThisWorkbook.Sheets("NWC")
-    Set wsAssumptions = ThisWorkbook.Sheets("Assumptions")
+    ' Set the active sheet to "DCF"
+    Sheets("DCF").Activate
+    Set ws = Sheets("DCF")
 
-    ' Define first and last columns (2021-2024 range)
-    firstCol = 6  ' Column F (assuming first projection starts at F)
-    lastCol = 9   ' Column I (corresponding to 2024)
+    ' List of row numbers to calculate average percentage change for
+    rowNumbers = Array(9, 11, 14, 17, 24)
 
-    ' Calculate Gross Margin % Average from 2021-2024 (Row 13 in DCF)
-    grossMarginAvg = Application.WorksheetFunction.Average(wsDCF.Range(wsDCF.Cells(13, firstCol), wsDCF.Cells(13, lastCol)))
+    ' Redimension the array to match the number of rows
+    ReDim avgChanges(LBound(rowNumbers) To UBound(rowNumbers))
 
-    ' Calculate Downside and Upside Cases
-    downsideCase = grossMarginAvg - 0.01 ' Downside Case (Base - 1%)
-    upsideCase = grossMarginAvg + 0.01   ' Upside Case (Base + 1%)
+    ' Loop through each row in the list
+    For i = LBound(rowNumbers) To UBound(rowNumbers)
+        ' Set the range for F:G:H:I in the current row
+        Set rng = ws.Range(ws.Cells(rowNumbers(i), 6), ws.Cells(rowNumbers(i), 9)) ' Columns F to I
 
-    ' 💾 Balance Sheet Assumptions (From NWC Tab - Calculated as % of Gross Margin)
-    ' Accounts Receivable % Sales
-    arAvg = Application.WorksheetFunction.Average(wsNWC.Range(wsNWC.Cells(48, firstCol), wsNWC.Cells(48, lastCol))) / grossMarginAvg
+        ' Store the calculated average percentage change in the array
+        avgChanges(i) = AveragePercentageChange(rng)
+    Next i
+    
+    ' Set the active sheet to "Assumptions"
+    Sheets("Assumptions").Activate
+    Set ws = Sheets("Assumptions")
 
-    ' Inventories % Sales
-    invAvg = Application.WorksheetFunction.Average(wsNWC.Range(wsNWC.Cells(55, firstCol), wsNWC.Cells(55, lastCol))) / grossMarginAvg
+    ' Rows to enter data in
+    assumRows = Array(11, 18, 25, 32, 40)
 
-    ' Prepaid Expenses % Sales
-    prepaidAvg = Application.WorksheetFunction.Average(wsNWC.Range(wsNWC.Cells(62, firstCol), wsNWC.Cells(62, lastCol))) / grossMarginAvg
+    ' Write the stored averages to column F in the corresponding assumption rows
+    For i = LBound(assumRows) To UBound(assumRows)
+        ws.Cells(assumRows(i), 6).Value = avgChanges(i)
+        ws.Cells(assumRows(i) + 2, 6).Value = avgChanges(i) + 0.01
+        ws.Cells(assumRows(i) + 3, 6).Value = avgChanges(i) - 0.01
+    Next i
+    
+    ' Set the active sheet to "DCF"
+    Sheets("NWC").Activate
+    Set ws = Sheets("NWC")
 
-    ' Accounts Payable % Sales
-    apAvg = Application.WorksheetFunction.Average(wsNWC.Range(wsNWC.Cells(69, firstCol), wsNWC.Cells(69, lastCol))) / grossMarginAvg
+    ' List of row numbers to calculate average percentage change for
+    rowNumbers = Array(13, 14, 15, 19, 20, 21)
 
-    ' Accrued Liabilities % Sales
-    accruedLiabAvg = Application.WorksheetFunction.Average(wsNWC.Range(wsNWC.Cells(76, firstCol), wsNWC.Cells(76, lastCol))) / grossMarginAvg
+    ' Redimension the array to match the number of rows
+    ReDim avgChanges(LBound(rowNumbers) To UBound(rowNumbers))
 
-    ' Other Current Liabilities % Sales
-    otherLiabAvg = Application.WorksheetFunction.Average(wsNWC.Range(wsNWC.Cells(83, firstCol), wsNWC.Cells(83, lastCol))) / grossMarginAvg
+    ' Loop through each row in the list
+    For i = LBound(rowNumbers) To UBound(rowNumbers)
+        ' Set the range for F:G:H:I in the current row
+        Set rng = ws.Range(ws.Cells(rowNumbers(i), 6), ws.Cells(rowNumbers(i), 9)) ' Columns F to I
 
-    ' Fill Base Case (2021-2024)
-    wsAssumptions.Range(wsAssumptions.Cells(48, firstCol), wsAssumptions.Cells(48, lastCol)).Value = arAvg ' Accounts Receivable
-    wsAssumptions.Range(wsAssumptions.Cells(55, firstCol), wsAssumptions.Cells(55, lastCol)).Value = invAvg ' Inventories
-    wsAssumptions.Range(wsAssumptions.Cells(62, firstCol), wsAssumptions.Cells(62, lastCol)).Value = prepaidAvg ' Prepaid Expenses
-    wsAssumptions.Range(wsAssumptions.Cells(69, firstCol), wsAssumptions.Cells(69, lastCol)).Value = apAvg ' Accounts Payable
-    wsAssumptions.Range(wsAssumptions.Cells(76, firstCol), wsAssumptions.Cells(76, lastCol)).Value = accruedLiabAvg ' Accrued Liabilities
-    wsAssumptions.Range(wsAssumptions.Cells(83, firstCol), wsAssumptions.Cells(83, lastCol)).Value = otherLiabAvg ' Other Liabilities
+        ' Store the calculated average percentage change in the array
+        avgChanges(i) = AveragePercentageChange(rng)
+    Next i
+    
+    ' Set the active sheet to "Assumptions"
+    Sheets("Assumptions").Activate
+    Set ws = Sheets("Assumptions")
 
-    ' Fill Downside Case (Base - 1%)
-    wsAssumptions.Range(wsAssumptions.Cells(49, firstCol), wsAssumptions.Cells(49, lastCol)).Value = arAvg - 0.01
-    wsAssumptions.Range(wsAssumptions.Cells(56, firstCol), wsAssumptions.Cells(56, lastCol)).Value = invAvg - 0.01
-    wsAssumptions.Range(wsAssumptions.Cells(63, firstCol), wsAssumptions.Cells(63, lastCol)).Value = prepaidAvg - 0.01
-    wsAssumptions.Range(wsAssumptions.Cells(70, firstCol), wsAssumptions.Cells(70, lastCol)).Value = apAvg - 0.01
-    wsAssumptions.Range(wsAssumptions.Cells(77, firstCol), wsAssumptions.Cells(77, lastCol)).Value = accruedLiabAvg - 0.01
-    wsAssumptions.Range(wsAssumptions.Cells(84, firstCol), wsAssumptions.Cells(84, lastCol)).Value = otherLiabAvg - 0.01
+    ' Rows to enter data in
+    assumRows = Array(48, 55, 62, 69, 76, 83)
 
-    ' Fill Upside Case (Base + 1%)
-    wsAssumptions.Range(wsAssumptions.Cells(50, firstCol), wsAssumptions.Cells(50, lastCol)).Value = arAvg + 0.01
-    wsAssumptions.Range(wsAssumptions.Cells(57, firstCol), wsAssumptions.Cells(57, lastCol)).Value = invAvg + 0.01
-    wsAssumptions.Range(wsAssumptions.Cells(64, firstCol), wsAssumptions.Cells(64, lastCol)).Value = prepaidAvg + 0.01
-    wsAssumptions.Range(wsAssumptions.Cells(71, firstCol), wsAssumptions.Cells(71, lastCol)).Value = apAvg + 0.01
-    wsAssumptions.Range(wsAssumptions.Cells(78, firstCol), wsAssumptions.Cells(78, lastCol)).Value = accruedLiabAvg + 0.01
-    wsAssumptions.Range(wsAssumptions.Cells(85, firstCol), wsAssumptions.Cells(85, lastCol)).Value = otherLiabAvg + 0.01
+    ' Write the stored averages to column F in the corresponding assumption rows
+    For i = LBound(assumRows) To UBound(assumRows)
+        ws.Cells(assumRows(i), 6).Value = avgChanges(i)
+        ws.Cells(assumRows(i) + 2, 6).Value = avgChanges(i) + 0.01
+        ws.Cells(assumRows(i) + 3, 6).Value = avgChanges(i) - 0.01
+    Next i
+    
+    ' Cleanup
+    Set ws = Nothing
+    Set rng = Nothing
 
-    MsgBox "Assumptions filled successfully for Base, Downside (-1%), and Upside (+1%) Cases (2021-2024)!", vbInformation
+    CopyValuesToRight
+
+    MsgBox "Average percentage changes calculated and stored in array, then written to column F!", vbInformation, "Calculation Complete"
+
+End Sub
+
+' Function to calculate average percentage change
+Function AveragePercentageChange(rng As Range) As Double
+    Dim i As Integer
+    Dim totalChange As Double
+    Dim count As Integer
+    
+    totalChange = 0
+    count = 0
+
+    ' Loop through each column (F to I) and calculate percentage change
+    For i = 2 To rng.Columns.count
+        If rng.Cells(1, i - 1).Value <> 0 Then
+            totalChange = totalChange + ((rng.Cells(1, i).Value - rng.Cells(1, i - 1).Value) / rng.Cells(1, i - 1).Value)
+            count = count + 1
+        End If
+    Next i
+
+    ' Calculate the average percentage change
+    If count > 0 Then
+        AveragePercentageChange = totalChange / count
+    Else
+        AveragePercentageChange = 0
+    End If
+End Function
+
+Sub CopyValuesToRight()
+    Dim ws As Worksheet
+    Dim rowNumbers As Variant
+    Dim i As Integer
+    Dim srcRange As Range
+    Dim destRange As Range
+    
+    Set ws = Sheets("Assumptions")
+
+    ' List of row numbers to copy from
+    rowNumbers = Array(11, 18, 25, 32, 40, 48, 55, 62, 69, 76, 83)
+
+    ' Loop through each row in the list
+    For i = LBound(rowNumbers) To UBound(rowNumbers)
+        ' Copy the main row (F to J)
+        Set srcRange = ws.Range("F" & rowNumbers(i))
+        Set destRange = ws.Range("G" & rowNumbers(i) & ":J" & rowNumbers(i))
+        destRange.Value = srcRange.Value
+
+        ' Copy the two rows below (F to J)
+        Set srcRange = ws.Range("F" & rowNumbers(i) + 2)
+        Set destRange = ws.Range("G" & rowNumbers(i) + 2 & ":J" & rowNumbers(i) + 2)
+        destRange.Value = srcRange.Value
+
+        Set srcRange = ws.Range("F" & rowNumbers(i) + 3)
+        Set destRange = ws.Range("G" & rowNumbers(i) + 3 & ":J" & rowNumbers(i) + 3)
+        destRange.Value = srcRange.Value
+    Next i
+
+    ' Cleanup
+    Set ws = Nothing
+    Set srcRange = Nothing
+    Set destRange = Nothing
+
+    MsgBox "Values successfully copied to the right!", vbInformation, "Task Complete"
 End Sub
