@@ -80,7 +80,6 @@ Sub FillWACC()
 End Sub
 
 Sub FillAssumptions()
-    Sub FillAssumptions()
     Dim wsDCF As Worksheet, wsAssumptions As Worksheet, wsNWC As Worksheet
     Dim firstCol As Integer, lastCol As Integer
     Dim i As Integer
