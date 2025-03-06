@@ -84,6 +84,8 @@ Sub FillAssumptions()
     Dim lastCol As Integer
     Dim firstProjectionCol As Integer
     Dim scaleFactor As Double
+    Dim grossMarginAvg As Double
+    Dim i As Integer
     
     ' Set worksheets
     Set wsDCF = ThisWorkbook.Sheets("DCF")
@@ -98,18 +100,45 @@ Sub FillAssumptions()
     ' First projection column (skip C to E, start at F)
     firstProjectionCol = 6
 
-    ' Fill Base Case % Growth (Sales) - Row 11
-    wsAssumptions.Range(wsAssumptions.Cells(11, firstProjectionCol), wsAssumptions.Cells(11, lastCol)).Formula = "=" & wsDCF.Range("I8").Address(True, True, xlA1, True) & " / " & scaleFactor
+    ' Calculate average Gross Margin % from historical data (Row 13 in DCF)
+    grossMarginAvg = Application.WorksheetFunction.Average(wsDCF.Range("F13:J13"))
+
+    ' Fill Base Case % Growth (Sales) - Row 11 (only light yellow regions)
+    For i = 0 To (lastCol - firstProjectionCol)
+        If wsAssumptions.Cells(11, firstProjectionCol + i).Interior.Color = RGB(255, 255, 153) Then ' Light Yellow
+            wsAssumptions.Cells(11, firstProjectionCol + i).Formula = "=" & wsDCF.Range("I8").Address(True, True, xlA1, True) & " / " & scaleFactor
+        End If
+    Next i
 
     ' Fill Base Case COGS % (Cost of Goods Sold) - Row 18
-    wsAssumptions.Range(wsAssumptions.Cells(18, firstProjectionCol), wsAssumptions.Cells(18, lastCol)).Formula = "=" & wsDCF.Range("I9").Address(True, True, xlA1, True) & " / " & scaleFactor
+    For i = 0 To (lastCol - firstProjectionCol)
+        If wsAssumptions.Cells(18, firstProjectionCol + i).Interior.Color = RGB(255, 255, 153) Then
+            wsAssumptions.Cells(18, firstProjectionCol + i).Formula = "=" & wsDCF.Range("I9").Address(True, True, xlA1, True) & " / " & scaleFactor
+        End If
+    Next i
 
     ' Fill Base Case SG&A % - Row 25
-    wsAssumptions.Range(wsAssumptions.Cells(25, firstProjectionCol), wsAssumptions.Cells(25, lastCol)).Formula = "=" & wsDCF.Range("I12").Address(True, True, xlA1, True) & " / " & scaleFactor
+    For i = 0 To (lastCol - firstProjectionCol)
+        If wsAssumptions.Cells(25, firstProjectionCol + i).Interior.Color = RGB(255, 255, 153) Then
+            wsAssumptions.Cells(25, firstProjectionCol + i).Formula = "=" & wsDCF.Range("I12").Address(True, True, xlA1, True) & " / " & scaleFactor
+        End If
+    Next i
 
     ' Fill Base Case Depreciation & Amortization % Sales - Row 32
-    wsAssumptions.Range(wsAssumptions.Cells(32, firstProjectionCol), wsAssumptions.Cells(32, lastCol)).Formula = "=" & wsDCF.Range("I15").Address(True, True, xlA1, True) & " / " & scaleFactor
+    For i = 0 To (lastCol - firstProjectionCol)
+        If wsAssumptions.Cells(32, firstProjectionCol + i).Interior.Color = RGB(255, 255, 153) Then
+            wsAssumptions.Cells(32, firstProjectionCol + i).Formula = "=" & wsDCF.Range("I15").Address(True, True, xlA1, True) & " / " & scaleFactor
+        End If
+    Next i
 
-    MsgBox "Base Case assumptions filled successfully, scaled down by 1 million! (Columns C-E excluded)", vbInformation
+    ' Fill Base Case Gross Margin % - Row 13 (Light Yellow Cells)
+    For i = 0 To (lastCol - firstProjectionCol)
+        If wsAssumptions.Cells(13, firstProjectionCol + i).Interior.Color = RGB(255, 255, 153) Then
+            wsAssumptions.Cells(13, firstProjectionCol + i).Value = grossMarginAvg
+        End If
+    Next i
+
+    MsgBox "Base Case assumptions filled successfully, including calculated Gross Margin!", vbInformation
 End Sub
+
 
