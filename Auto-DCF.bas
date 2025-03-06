@@ -80,55 +80,76 @@ Sub FillWACC()
 End Sub
 
 Sub FillAssumptions()
-    Dim wsDCF As Worksheet, wsAssumptions As Worksheet
-    Dim lastCol As Integer
-    Dim firstProjectionCol As Integer
+    Sub FillAssumptions()
+    Dim wsDCF As Worksheet, wsAssumptions As Worksheet, wsNWC As Worksheet
+    Dim firstCol As Integer, lastCol As Integer
     Dim i As Integer
-    Dim grossMarginAvg As Double, cogsAvg As Double
-
+    Dim grossMarginAvg As Double, cogsAvg As Double, capexAvg As Double, wcAvg As Double
+    Dim arAvg As Double, invAvg As Double, prepaidAvg As Double, apAvg As Double, accruedLiabAvg As Double, otherLiabAvg As Double
+    Dim downsideCase As Double, upsideCase As Double
+    
     ' Set worksheets
     Set wsDCF = ThisWorkbook.Sheets("DCF")
+    Set wsNWC = ThisWorkbook.Sheets("NWC")
     Set wsAssumptions = ThisWorkbook.Sheets("Assumptions")
 
-    ' Identify last column for projections in Assumptions tab
-    lastCol = wsAssumptions.Cells(9, wsAssumptions.Columns.Count).End(xlToLeft).Column
-    firstProjectionCol = 6 ' Assuming first projection starts at column F
+    ' Define first and last columns (2021-2024 range)
+    firstCol = 6  ' Column F (assuming first projection starts at F)
+    lastCol = 9   ' Column I (corresponding to 2024)
 
-    ' Calculate Gross Margin % from DCF
-    grossMarginAvg = Application.WorksheetFunction.Average(wsDCF.Range("F13:J13"))
+    ' Calculate Gross Margin % Average from 2021-2024 (Row 13 in DCF)
+    grossMarginAvg = Application.WorksheetFunction.Average(wsDCF.Range(wsDCF.Cells(13, firstCol), wsDCF.Cells(13, lastCol)))
 
-    ' Calculate COGS % as (COGS / Sales) and take average
-    Dim cogsPercentages As Range
-    Set cogsPercentages = wsDCF.Range("F10:J10") / wsDCF.Range("F8:J8")
-    cogsAvg = Application.WorksheetFunction.Average(cogsPercentages)
+    ' Calculate Downside and Upside Cases
+    downsideCase = grossMarginAvg - 0.01 ' Downside Case (Base - 1%)
+    upsideCase = grossMarginAvg + 0.01   ' Upside Case (Base + 1%)
 
-    ' Fill Base Case Sales Growth % (Row 11 in Assumptions)
-    For i = 0 To (lastCol - firstProjectionCol)
-        wsAssumptions.Cells(11, firstProjectionCol + i).Value = wsDCF.Cells(8, firstProjectionCol + i).Value
-    Next i
+    ' 💾 Balance Sheet Assumptions (From NWC Tab - Calculated as % of Gross Margin)
+    ' Accounts Receivable % Sales
+    arAvg = Application.WorksheetFunction.Average(wsNWC.Range(wsNWC.Cells(48, firstCol), wsNWC.Cells(48, lastCol))) / grossMarginAvg
 
-    ' Fill Base Case COGS % (Row 18 in Assumptions) using calculated average
-    For i = 0 To (lastCol - firstProjectionCol)
-        wsAssumptions.Cells(18, firstProjectionCol + i).Value = cogsAvg
-    Next i
+    ' Inventories % Sales
+    invAvg = Application.WorksheetFunction.Average(wsNWC.Range(wsNWC.Cells(55, firstCol), wsNWC.Cells(55, lastCol))) / grossMarginAvg
 
-    ' Fill Base Case Gross Margin % (Row 13 in Assumptions) using calculated average
-    For i = 0 To (lastCol - firstProjectionCol)
-        wsAssumptions.Cells(13, firstProjectionCol + i).Value = grossMarginAvg
-    Next i
+    ' Prepaid Expenses % Sales
+    prepaidAvg = Application.WorksheetFunction.Average(wsNWC.Range(wsNWC.Cells(62, firstCol), wsNWC.Cells(62, lastCol))) / grossMarginAvg
 
-    ' Fill Base Case SG&A % (Row 25 in Assumptions)
-    For i = 0 To (lastCol - firstProjectionCol)
-        wsAssumptions.Cells(25, firstProjectionCol + i).Value = wsDCF.Cells(12, firstProjectionCol + i).Value
-    Next i
+    ' Accounts Payable % Sales
+    apAvg = Application.WorksheetFunction.Average(wsNWC.Range(wsNWC.Cells(69, firstCol), wsNWC.Cells(69, lastCol))) / grossMarginAvg
 
-    ' Fill Base Case Depreciation & Amortization % Sales (Row 32 in Assumptions)
-    For i = 0 To (lastCol - firstProjectionCol)
-        wsAssumptions.Cells(32, firstProjectionCol + i).Value = wsDCF.Cells(15, firstProjectionCol + i).Value
-    Next i
+    ' Accrued Liabilities % Sales
+    accruedLiabAvg = Application.WorksheetFunction.Average(wsNWC.Range(wsNWC.Cells(76, firstCol), wsNWC.Cells(76, lastCol))) / grossMarginAvg
 
-    MsgBox "Assumptions updated using DCF data!", vbInformation
+    ' Other Current Liabilities % Sales
+    otherLiabAvg = Application.WorksheetFunction.Average(wsNWC.Range(wsNWC.Cells(83, firstCol), wsNWC.Cells(83, lastCol))) / grossMarginAvg
+
+    ' Fill Base Case (2021-2024)
+    wsAssumptions.Range(wsAssumptions.Cells(48, firstCol), wsAssumptions.Cells(48, lastCol)).Value = arAvg ' Accounts Receivable
+    wsAssumptions.Range(wsAssumptions.Cells(55, firstCol), wsAssumptions.Cells(55, lastCol)).Value = invAvg ' Inventories
+    wsAssumptions.Range(wsAssumptions.Cells(62, firstCol), wsAssumptions.Cells(62, lastCol)).Value = prepaidAvg ' Prepaid Expenses
+    wsAssumptions.Range(wsAssumptions.Cells(69, firstCol), wsAssumptions.Cells(69, lastCol)).Value = apAvg ' Accounts Payable
+    wsAssumptions.Range(wsAssumptions.Cells(76, firstCol), wsAssumptions.Cells(76, lastCol)).Value = accruedLiabAvg ' Accrued Liabilities
+    wsAssumptions.Range(wsAssumptions.Cells(83, firstCol), wsAssumptions.Cells(83, lastCol)).Value = otherLiabAvg ' Other Liabilities
+
+    ' Fill Downside Case (Base - 1%)
+    wsAssumptions.Range(wsAssumptions.Cells(49, firstCol), wsAssumptions.Cells(49, lastCol)).Value = arAvg - 0.01
+    wsAssumptions.Range(wsAssumptions.Cells(56, firstCol), wsAssumptions.Cells(56, lastCol)).Value = invAvg - 0.01
+    wsAssumptions.Range(wsAssumptions.Cells(63, firstCol), wsAssumptions.Cells(63, lastCol)).Value = prepaidAvg - 0.01
+    wsAssumptions.Range(wsAssumptions.Cells(70, firstCol), wsAssumptions.Cells(70, lastCol)).Value = apAvg - 0.01
+    wsAssumptions.Range(wsAssumptions.Cells(77, firstCol), wsAssumptions.Cells(77, lastCol)).Value = accruedLiabAvg - 0.01
+    wsAssumptions.Range(wsAssumptions.Cells(84, firstCol), wsAssumptions.Cells(84, lastCol)).Value = otherLiabAvg - 0.01
+
+    ' Fill Upside Case (Base + 1%)
+    wsAssumptions.Range(wsAssumptions.Cells(50, firstCol), wsAssumptions.Cells(50, lastCol)).Value = arAvg + 0.01
+    wsAssumptions.Range(wsAssumptions.Cells(57, firstCol), wsAssumptions.Cells(57, lastCol)).Value = invAvg + 0.01
+    wsAssumptions.Range(wsAssumptions.Cells(64, firstCol), wsAssumptions.Cells(64, lastCol)).Value = prepaidAvg + 0.01
+    wsAssumptions.Range(wsAssumptions.Cells(71, firstCol), wsAssumptions.Cells(71, lastCol)).Value = apAvg + 0.01
+    wsAssumptions.Range(wsAssumptions.Cells(78, firstCol), wsAssumptions.Cells(78, lastCol)).Value = accruedLiabAvg + 0.01
+    wsAssumptions.Range(wsAssumptions.Cells(85, firstCol), wsAssumptions.Cells(85, lastCol)).Value = otherLiabAvg + 0.01
+
+    MsgBox "Assumptions filled successfully for Base, Downside (-1%), and Upside (+1%) Cases (2021-2024)!", vbInformation
 End Sub
+
 
 
 
