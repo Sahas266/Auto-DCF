@@ -83,62 +83,52 @@ Sub FillAssumptions()
     Dim wsDCF As Worksheet, wsAssumptions As Worksheet
     Dim lastCol As Integer
     Dim firstProjectionCol As Integer
-    Dim scaleFactor As Double
-    Dim grossMarginAvg As Double
     Dim i As Integer
-    
+    Dim grossMarginAvg As Double, cogsAvg As Double
+
     ' Set worksheets
     Set wsDCF = ThisWorkbook.Sheets("DCF")
     Set wsAssumptions = ThisWorkbook.Sheets("Assumptions")
 
-    ' Define scaling factor (convert to millions)
-    scaleFactor = 1000000
-
-    ' Identify the last column for projection data
+    ' Identify last column for projections in Assumptions tab
     lastCol = wsAssumptions.Cells(9, wsAssumptions.Columns.Count).End(xlToLeft).Column
+    firstProjectionCol = 6 ' Assuming first projection starts at column F
 
-    ' First projection column (skip C to E, start at F)
-    firstProjectionCol = 6
-
-    ' Calculate average Gross Margin % from historical data (Row 13 in DCF)
+    ' Calculate Gross Margin % from DCF
     grossMarginAvg = Application.WorksheetFunction.Average(wsDCF.Range("F13:J13"))
 
-    ' Fill Base Case % Growth (Sales) - Row 11 (only light yellow regions)
+    ' Calculate COGS % as (COGS / Sales) and take average
+    Dim cogsPercentages As Range
+    Set cogsPercentages = wsDCF.Range("F10:J10") / wsDCF.Range("F8:J8")
+    cogsAvg = Application.WorksheetFunction.Average(cogsPercentages)
+
+    ' Fill Base Case Sales Growth % (Row 11 in Assumptions)
     For i = 0 To (lastCol - firstProjectionCol)
-        If wsAssumptions.Cells(11, firstProjectionCol + i).Interior.Color = RGB(255, 255, 153) Then ' Light Yellow
-            wsAssumptions.Cells(11, firstProjectionCol + i).Formula = "=" & wsDCF.Range("I8").Address(True, True, xlA1, True) & " / " & scaleFactor
-        End If
+        wsAssumptions.Cells(11, firstProjectionCol + i).Value = wsDCF.Cells(8, firstProjectionCol + i).Value
     Next i
 
-    ' Fill Base Case COGS % (Cost of Goods Sold) - Row 18
+    ' Fill Base Case COGS % (Row 18 in Assumptions) using calculated average
     For i = 0 To (lastCol - firstProjectionCol)
-        If wsAssumptions.Cells(18, firstProjectionCol + i).Interior.Color = RGB(255, 255, 153) Then
-            wsAssumptions.Cells(18, firstProjectionCol + i).Formula = "=" & wsDCF.Range("I9").Address(True, True, xlA1, True) & " / " & scaleFactor
-        End If
+        wsAssumptions.Cells(18, firstProjectionCol + i).Value = cogsAvg
     Next i
 
-    ' Fill Base Case SG&A % - Row 25
+    ' Fill Base Case Gross Margin % (Row 13 in Assumptions) using calculated average
     For i = 0 To (lastCol - firstProjectionCol)
-        If wsAssumptions.Cells(25, firstProjectionCol + i).Interior.Color = RGB(255, 255, 153) Then
-            wsAssumptions.Cells(25, firstProjectionCol + i).Formula = "=" & wsDCF.Range("I12").Address(True, True, xlA1, True) & " / " & scaleFactor
-        End If
+        wsAssumptions.Cells(13, firstProjectionCol + i).Value = grossMarginAvg
     Next i
 
-    ' Fill Base Case Depreciation & Amortization % Sales - Row 32
+    ' Fill Base Case SG&A % (Row 25 in Assumptions)
     For i = 0 To (lastCol - firstProjectionCol)
-        If wsAssumptions.Cells(32, firstProjectionCol + i).Interior.Color = RGB(255, 255, 153) Then
-            wsAssumptions.Cells(32, firstProjectionCol + i).Formula = "=" & wsDCF.Range("I15").Address(True, True, xlA1, True) & " / " & scaleFactor
-        End If
+        wsAssumptions.Cells(25, firstProjectionCol + i).Value = wsDCF.Cells(12, firstProjectionCol + i).Value
     Next i
 
-    ' Fill Base Case Gross Margin % - Row 13 (Light Yellow Cells)
+    ' Fill Base Case Depreciation & Amortization % Sales (Row 32 in Assumptions)
     For i = 0 To (lastCol - firstProjectionCol)
-        If wsAssumptions.Cells(13, firstProjectionCol + i).Interior.Color = RGB(255, 255, 153) Then
-            wsAssumptions.Cells(13, firstProjectionCol + i).Value = grossMarginAvg
-        End If
+        wsAssumptions.Cells(32, firstProjectionCol + i).Value = wsDCF.Cells(15, firstProjectionCol + i).Value
     Next i
 
-    MsgBox "Base Case assumptions filled successfully, including calculated Gross Margin!", vbInformation
+    MsgBox "Assumptions updated using DCF data!", vbInformation
 End Sub
+
 
 
