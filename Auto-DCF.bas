@@ -68,10 +68,11 @@ Sub FillDCF()
     ' Call FillWACC
     FillWACC ticker, currentYear
     FillNWC ticker, currentYear, scaling
-    CalculateAvgPercentageChangeAndStore
     
-    Debug.Print "Macro is running!"
-    MsgBox "Button Clicked!"
+    ' Set the DCF sheet as active
+    Sheets("DCF").Activate
+    
+    MsgBox "Macro Ran!"
     
 End Sub
 
@@ -117,7 +118,7 @@ Sub FillNWC(ticker As String, currentYear As Integer, scaling As Double)
     
 End Sub
 
-Sub CalculateAvgPercentageChangeAndStore()
+Sub FillAssumptions()
     Dim ws As Worksheet
     Dim rowNumbers As Variant
     Dim avgChanges() As Double
@@ -150,14 +151,19 @@ Sub CalculateAvgPercentageChangeAndStore()
     ' Rows to enter data in
     assumRows = Array(11, 18, 25, 32, 40)
 
-    ' Write the stored averages to column F in the corresponding assumption rows
+    ' Write stored averages directly into columns F:J
     For i = LBound(assumRows) To UBound(assumRows)
-        ws.Cells(assumRows(i), 6).Value = avgChanges(i)
-        ws.Cells(assumRows(i) + 2, 6).Value = avgChanges(i) + 0.01
-        ws.Cells(assumRows(i) + 3, 6).Value = avgChanges(i) - 0.01
+        ' Set original values in F:J
+        ws.Range(ws.Cells(assumRows(i), 6), ws.Cells(assumRows(i), 10)).Value = avgChanges(i)
+    
+        ' Set +2 row (Increase by 1)
+        ws.Range(ws.Cells(assumRows(i) + 2, 6), ws.Cells(assumRows(i) + 2, 10)).Value = avgChanges(i) + 0.01
+    
+        ' Set +3 row (Decrease by 1)
+        ws.Range(ws.Cells(assumRows(i) + 3, 6), ws.Cells(assumRows(i) + 3, 10)).Value = avgChanges(i) - 0.01
     Next i
     
-    ' Set the active sheet to "DCF"
+    ' Set the active sheet to "NWC"
     Sheets("NWC").Activate
     Set ws = Sheets("NWC")
 
@@ -170,7 +176,7 @@ Sub CalculateAvgPercentageChangeAndStore()
     ' Loop through each row in the list
     For i = LBound(rowNumbers) To UBound(rowNumbers)
         ' Set the range for F:G:H:I in the current row
-        Set rng = ws.Range(ws.Cells(rowNumbers(i), 6), ws.Cells(rowNumbers(i), 9)) ' Columns F to I
+        Set rng = ws.Range(ws.Cells(rowNumbers(i), 4), ws.Cells(rowNumbers(i), 7)) ' Columns D to G
 
         ' Store the calculated average percentage change in the array
         avgChanges(i) = AveragePercentageChange(rng)
@@ -183,20 +189,21 @@ Sub CalculateAvgPercentageChangeAndStore()
     ' Rows to enter data in
     assumRows = Array(48, 55, 62, 69, 76, 83)
 
-    ' Write the stored averages to column F in the corresponding assumption rows
+    ' Write stored averages directly into columns F:J
     For i = LBound(assumRows) To UBound(assumRows)
-        ws.Cells(assumRows(i), 6).Value = avgChanges(i)
-        ws.Cells(assumRows(i) + 2, 6).Value = avgChanges(i) + 0.01
-        ws.Cells(assumRows(i) + 3, 6).Value = avgChanges(i) - 0.01
+        ' Set original values in F:J
+        ws.Range(ws.Cells(assumRows(i), 6), ws.Cells(assumRows(i), 10)).Value = avgChanges(i)
+    
+        ' Set +2 row (Increase by 1)
+        ws.Range(ws.Cells(assumRows(i) + 2, 6), ws.Cells(assumRows(i) + 2, 10)).Value = avgChanges(i) + 0.01
+    
+        ' Set +3 row (Decrease by 1)
+        ws.Range(ws.Cells(assumRows(i) + 3, 6), ws.Cells(assumRows(i) + 3, 10)).Value = avgChanges(i) - 0.01
     Next i
     
     ' Cleanup
     Set ws = Nothing
     Set rng = Nothing
-
-    CopyValuesToRight
-
-    MsgBox "Average percentage changes calculated and stored in array, then written to column F!", vbInformation, "Calculation Complete"
 
 End Sub
 
@@ -224,40 +231,3 @@ Function AveragePercentageChange(rng As Range) As Double
         AveragePercentageChange = 0
     End If
 End Function
-
-Sub CopyValuesToRight()
-    Dim ws As Worksheet
-    Dim rowNumbers As Variant
-    Dim i As Integer
-    Dim srcRange As Range
-    Dim destRange As Range
-    
-    Set ws = Sheets("Assumptions")
-
-    ' List of row numbers to copy from
-    rowNumbers = Array(11, 18, 25, 32, 40, 48, 55, 62, 69, 76, 83)
-
-    ' Loop through each row in the list
-    For i = LBound(rowNumbers) To UBound(rowNumbers)
-        ' Copy the main row (F to J)
-        Set srcRange = ws.Range("F" & rowNumbers(i))
-        Set destRange = ws.Range("G" & rowNumbers(i) & ":J" & rowNumbers(i))
-        destRange.Value = srcRange.Value
-
-        ' Copy the two rows below (F to J)
-        Set srcRange = ws.Range("F" & rowNumbers(i) + 2)
-        Set destRange = ws.Range("G" & rowNumbers(i) + 2 & ":J" & rowNumbers(i) + 2)
-        destRange.Value = srcRange.Value
-
-        Set srcRange = ws.Range("F" & rowNumbers(i) + 3)
-        Set destRange = ws.Range("G" & rowNumbers(i) + 3 & ":J" & rowNumbers(i) + 3)
-        destRange.Value = srcRange.Value
-    Next i
-
-    ' Cleanup
-    Set ws = Nothing
-    Set srcRange = Nothing
-    Set destRange = Nothing
-
-    MsgBox "Values successfully copied to the right!", vbInformation, "Task Complete"
-End Sub
