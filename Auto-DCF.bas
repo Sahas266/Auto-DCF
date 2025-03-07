@@ -207,6 +207,50 @@ Sub FillAssumptions()
 
 End Sub
 
+Sub FillCases(ticker As String, currentYear As Integer)
+    Dim ws As Worksheet
+    Set ws = Sheets("DCF")
+
+    ' Define input cell locations
+    Dim revenueCAGR As Range, COGS As Range, opMargin As Range, capex As Range
+    Dim probBase As Double, probBear As Double, probBull As Double
+    Dim impliedBase As Double, impliedBear As Double, impliedBull As Double
+    Dim probWeightedPrice As Double
+    Dim currentPrice As Double
+    
+    ' Locate cells for input assumptions
+    Set revenueCAGR = ws.Range("B3:D3") ' Revenue CAGR (Base, Bear, Bull)
+    Set COGS = ws.Range("B4:D4") ' COGS %
+    Set opMargin = ws.Range("B5:D5") ' Operating Margin
+    Set capex = ws.Range("B6:D6") ' Capital Expenditures
+    
+    ' Read probabilities
+    probBase = ws.Range("B10").Value ' Probability for Base Case
+    probBear = ws.Range("C10").Value ' Probability for Bear Case
+    probBull = ws.Range("D10").Value ' Probability for Bull Case
+    
+    ' Read current share price
+    currentPrice = ws.Range("B9").Value
+    
+    ' Compute implied share prices (for now assume it's a function of operating margin)
+    impliedBase = currentPrice * (opMargin.Cells(1, 1).Value / 50) ' Example formula
+    impliedBear = currentPrice * (opMargin.Cells(1, 2).Value / 50)
+    impliedBull = currentPrice * (opMargin.Cells(1, 3).Value / 50)
+    
+    ' Calculate probability-weighted price target
+    probWeightedPrice = (impliedBase * probBase) + (impliedBear * probBear) + (impliedBull * probBull)
+    
+    ' Write results to the sheet
+    ws.Range("B7").Value = impliedBase
+    ws.Range("C7").Value = impliedBear
+    ws.Range("D7").Value = impliedBull
+    ws.Range("B12").Value = probWeightedPrice
+    
+    ' Cleanup
+    Set ws = Nothing
+End Sub
+
+
 ' Function to calculate average percentage change
 Function AveragePercentageChange(rng As Range) As Double
     Dim i As Integer
