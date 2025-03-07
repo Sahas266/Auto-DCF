@@ -16,7 +16,7 @@ Sub FillDCF()
     scaling = 1 / 1000000
     
     ' Read ticker and year from Excel cells
-    ticker = Range("D3").Value & ".O"
+    ticker = Range("D3").Value
     currentYear = Range("I8").Value
     
     ' Fill company name
@@ -69,8 +69,8 @@ Sub FillDCF()
     FillWACC ticker, currentYear
     FillNWC ticker, currentYear, scaling
     
-    ' Set the DCF sheet as active
-    Sheets("DCF").Activate
+    ' Set the Assumptions sheet as active
+    Sheets("Assumptions").Activate
     
     MsgBox "Macro Ran!"
     
@@ -144,6 +144,11 @@ Sub FillAssumptions()
         avgChanges(i) = AveragePercentageChange(rng)
     Next i
     
+    ' The Sales row
+    Set rng = ws.Range(ws.Cells(rowNumbers(0), 6), ws.Cells(rowNumbers(0), 9))
+    ' Store the calculated average percentage change in the array
+    avgChanges(0) = RealAveragePercentageChange(rng)
+    
     ' Set the active sheet to "Assumptions"
     Sheets("Assumptions").Activate
     Set ws = Sheets("Assumptions")
@@ -204,11 +209,43 @@ Sub FillAssumptions()
     ' Cleanup
     Set ws = Nothing
     Set rng = Nothing
+    
+    MsgBox "Macro Ran!"
 
 End Sub
 
-' Function to calculate average percentage change
+' avg % of sales
 Function AveragePercentageChange(rng As Range) As Double
+    Dim i As Integer
+    Dim totalPct As Double
+    Dim count As Integer
+    Dim salesRow As Range
+
+    ' Reference to sales values in DCF!F9:I9
+    Set salesRow = Sheets("DCF").Range("F9:I9")
+
+    totalPct = 0
+    count = 0
+
+    ' Loop through each cell in the provided range
+    For i = 1 To rng.Columns.count
+        If salesRow.Cells(1, i).Value <> 0 Then
+            ' Calculate percentage of sales
+            totalPct = totalPct + (rng.Cells(1, i).Value / salesRow.Cells(1, i).Value)
+            count = count + 1
+        End If
+    Next i
+
+    ' Calculate average percentage
+    If count > 0 Then
+        AveragePercentageChange = totalPct / count
+    Else
+        AveragePercentageChange = 0
+    End If
+End Function
+
+' Function to calculate average percentage change
+Function RealAveragePercentageChange(rng As Range) As Double
     Dim i As Integer
     Dim totalChange As Double
     Dim count As Integer
@@ -226,8 +263,8 @@ Function AveragePercentageChange(rng As Range) As Double
 
     ' Calculate the average percentage change
     If count > 0 Then
-        AveragePercentageChange = totalChange / count
+        RealAveragePercentageChange = totalChange / count
     Else
-        AveragePercentageChange = 0
+        RealAveragePercentageChange = 0
     End If
 End Function

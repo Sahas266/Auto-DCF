@@ -1,3 +1,7 @@
 # Auto-DCF
 Visual Basic script for filling out a DCF template
-Requires installation and login of Refinitiv LSEG and activation of LSEG Workspace Excel add-in.
+
+Prerequisites:
+- Requires installation and login of Refinitiv / LSEG Workspace.
+- Activation of LSEG Workspace Excel add-in (only available on Windows). The Lite version of the add-in is NOT sufficient.
+- Requires internet connection initial fill.
